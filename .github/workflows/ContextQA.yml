@@ -31,7 +31,7 @@ jobs:
         uses: aagam-salot/contextqa-ci@fix/con-6433-ci-report-names-duration
         with:
           plan-id: ${{ inputs.plan-id }}
-          token: ${{ inputs.token == 'full' && secrets.CONTEXTQA_QA_TOKEN_FULL || secrets.CONTEXTQA_QA_TOKEN_LIMITED }}
+          token: ${{ inputs.token == 'full' && secrets.CONTEXTQA_TOKEN || secrets.CONTEXTQA_TOKEN }}
           api-url: https://server.dev.contextqa.com
           junit-path: ${{ inputs.junit && 'reports/contextqa.xml' || '' }}
           fail-on: ${{ inputs.fail-on }}
