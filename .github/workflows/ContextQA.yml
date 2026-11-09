@@ -17,7 +17,8 @@ jobs:
         with:
           plan-id: 2
           token: ${{ secrets.CONTEXTQA_TOKEN }}
-          environment: QA
+          api-url: https://server.dev.contextqa.com
+          # environment: QA   # Remove the "#" only if plan 2 must use a different environment.
           timeout: 3600
           junit-path: reports/contextqa.xml
 
