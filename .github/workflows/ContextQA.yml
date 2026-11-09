@@ -1,0 +1,29 @@
+name: ContextQA - Test Plan 2 (QA)
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  contextqa-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 70
+    steps:
+      - name: Run ContextQA test plan 2 on QA
+        id: contextqa
+        uses: indivatools/contextqa-ci@v1
+        with:
+          plan-id: 2
+          token: ${{ secrets.CONTEXTQA_TOKEN }}
+          environment: QA
+          timeout: 3600
+          junit-path: reports/contextqa.xml
+
+      - name: Show the result
+        if: always()
+        run: |
+          echo "Result: ${{ steps.contextqa.outputs.result }}"
+          echo "Passed: ${{ steps.contextqa.outputs.passed-count }} / ${{ steps.contextqa.outputs.total-count }}"
+          echo "Report: ${{ steps.contextqa.outputs.report-url }}"
