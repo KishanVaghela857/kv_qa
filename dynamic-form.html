@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title></title>
+<!--
+  Everything visible on this page (tags, ids, names, classes, data-* attributes,
+  iframe ids/names/titles, labels, placeholders, field order, nesting, colours)
+  is generated at runtime and is different on every reload.
+  Form controls live inside CLOSED shadow roots, so XPath / CSS selectors
+  cannot reach them from the outside.
+-->
+</head>
+<body>
+<script>
+(function () {
+  'use strict';
+
+  /* ------------------------------------------------------------------ *
+   *  CONFIG
+   * ------------------------------------------------------------------ */
+  const CONFIG = {
+    ROTATE_MS: 0   // >0 = also re-randomise ids / names / data-* every N ms (e.g. 4000)
+  };
+
+  /* ------------------------------------------------------------------ *
+   *  Random helpers
+   * ------------------------------------------------------------------ */
+  const R = {
+    int: (a, b) => Math.floor(Math.random() * (b - a + 1)) + a,
+    pick: (a) => a[Math.floor(Math.random() * a.length)],
+    shuffle: (a) => {
+      a = a.slice();
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = R.int(0, i);
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    },
+    str: (n) => {
+      n = n || 8;
+      const L = 'abcdefghijklmnopqrstuvwxyz', A = L + '0123456789';
+      let s = L[R.int(0, 25)];
+      for (let i = 1; i < n; i++) s += A[R.int(0, A.length - 1)];
+      return s;
+    }
+  };
+
+  const ZW = ['\u200b', '\u200c', '\u2060'];
+  // Zero-width characters break text()/contains()/getByText locators
+  const noisy = (t) => Array.from(t).map(ch => Math.random() < 0.4 ? ch + R.pick(ZW) : ch).join('');
+  const clean = (t) => String(t).replace(/[\u200b\u200c\u2060]/g, '');
+
+  // Container tags are random on every load
+  const CT = ['div', 'section', 'article', 'span', 'aside', 'figure', 'nav'];
+  const LT = ['span', 'div', 'b', 'em', 'i', 'strong'];
+  const tracked = [];
+
+  /* ------------------------------------------------------------------ *
+   *  Theme (random per reload)
+   * ------------------------------------------------------------------ */
+  const hue = R.int(0, 359);
+  const dark = Math.random() < 0.5;
+  const T = {
+    font: R.pick([
+      'Georgia, "Times New Roman", serif',
+      '"Trebuchet MS", Verdana, sans-serif',
+      '"Segoe UI", Tahoma, sans-serif',
+      '"Courier New", monospace',
+      'Garamond, "Palatino Linotype", serif'
+    ]),
+    bg:   dark ? `hsl(${hue} 20% 11%)` : `hsl(${hue} 40% 95%)`,
+    card: dark ? `hsl(${hue} 18% 17%)` : '#ffffff',
+    fg:   dark ? '#eceff4'             : `hsl(${hue} 30% 15%)`,
+    bd:   dark ? `hsl(${hue} 15% 32%)` : `hsl(${hue} 20% 80%)`,
+    ac:   `hsl(${(hue + R.int(0, 60)) % 360} 70% ${dark ? 55 : 42}%)`
+  };
+
+  /* ------------------------------------------------------------------ *
+   *  Attribute noise + rotation
+   * ------------------------------------------------------------------ */
+  const rattrs = (e) => {
+    for (let i = R.int(2, 4); i--;) {
+      e.setAttribute('data-' + R.str(R.int(3, 7)), R.str(R.int(4, 10)));
+    }
+  };
+  const el = (doc, tag, cls) => {
+    const e = doc.createElement(tag);
+    if (cls) e.className = cls;
+    rattrs(e);
+    return e;
+  };
+  const scramble = (e) => {
+    Array.from(e.attributes).forEach(a => {
+      if (a.name.indexOf('data-') === 0) e.removeAttribute(a.name);
+    });
+    rattrs(e);
+    if (e.hasAttribute('id')) e.id = R.str(9);
+    if (e.hasAttribute('name')) e.setAttribute('name', R.str(9));
+    if (e.hasAttribute('aria-label')) e.setAttribute('aria-label', noisy(R.str(6)));
+  };
+  if (CONFIG.ROTATE_MS > 0) {
+    setInterval(() => tracked.forEach(scramble), CONFIG.ROTATE_MS);
+  }
+
+  /* ------------------------------------------------------------------ *
+   *  Random class maps + CSS
+   * ------------------------------------------------------------------ */
+  const cls = () => ({
+    w: R.str(7), l: R.str(7), i: R.str(7), o: R.str(7), e: R.str(7),
+    k: R.str(7), r: R.str(7), b: R.str(7), out: R.str(7), h: R.str(7)
+  });
+
+  const shadowCss = (c) => `
+    :host{display:block}
+    .${c.w}{display:flex;flex-direction:column;gap:6px;padding:10px 12px 4px;font:14px/1.4 ${T.font};color:${T.fg}}
+    .${c.l}{order:0;font-weight:600;font-size:13px}
+    .${c.i}{order:1;box-sizing:border-box;width:100%;padding:10px 12px;border:1px solid ${T.bd};border-radius:8px;background:${T.card};color:${T.fg};font:inherit}
+    textarea.${c.i}{min-height:70px;resize:vertical}
+    .${c.i}:focus{outline:2px solid ${T.ac};outline-offset:1px}
+    .${c.k}{order:1;align-self:flex-start;width:18px;height:18px;accent-color:${T.ac}}
+    .${c.o}{order:1;display:flex;flex-wrap:wrap;gap:8px 18px}
+    .${c.r}{display:flex;align-items:center;gap:6px;cursor:pointer}
+    .${c.e}{order:2;color:#e5484d;font-size:12px;min-height:14px}
+    .${c.h}{font-size:22px;font-weight:700;margin:0;color:${T.fg}}
+    .${c.b}{display:inline-block;align-self:flex-start;padding:11px 24px;border-radius:8px;background:${T.ac};color:#fff;font-weight:700;cursor:pointer;user-select:none}
+    .${c.b}:focus{outline:2px solid ${T.fg};outline-offset:2px}
+    .${c.out}{order:3;white-space:pre-wrap;font:12px/1.5 "Courier New",monospace;padding:10px;border:1px dashed ${T.bd};border-radius:8px;min-height:18px}
+  `;
+
+  // Per-document scope: body style + iframe class
+  const scope = (doc) => {
+    const c = { box: R.str(6), f: R.str(8) };
+    const s = doc.createElement('style');
+    s.textContent = `
+      html,body{margin:0}
+      body{background:${T.bg};color:${T.fg};padding:12px;font:14px ${T.font}}
+      .${c.box}{display:flex;flex-direction:column}
+      .${c.f}{display:block;width:100%;border:1px solid ${T.bd};border-radius:12px;background:${T.card};margin:10px 0}
+    `;
+    (doc.head || doc.documentElement).appendChild(s);
+    return c;
+  };
+
+  /* ------------------------------------------------------------------ *
+   *  Field definitions (labels / placeholders are synonym pools)
+   * ------------------------------------------------------------------ */
+  const nonEmpty = (v) => String(v).length > 0;
+  const DEFS = [
+    { key: 'firstName', kind: 'text', h: 95, types: ['text', 'search'], v: nonEmpty,
+      labels: ['First name', 'Given name', 'Forename', 'Your first name'],
+      ph: ['e.g. Alex', 'John', 'Type here…', 'Your name'] },
+    { key: 'lastName', kind: 'text', h: 95, types: ['text', 'search'], v: nonEmpty,
+      labels: ['Last name', 'Family name', 'Surname', 'Your last name'],
+      ph: ['e.g. Morgan', 'Doe', 'Type here…', 'Your surname'] },
+    { key: 'email', kind: 'text', h: 95, types: ['text'], v: (v) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v),
+      labels: ['Email address', 'E-mail', 'Mail', 'Where can we reach you?'],
+      ph: ['name@example.com', 'you@mail.com', 'someone@domain.org'] },
+    { key: 'phone', kind: 'text', h: 95, types: ['text', 'search'], v: (v) => v.replace(/\D/g, '').length >= 7,
+      labels: ['Phone number', 'Mobile', 'Contact number', 'Telephone'],
+      ph: ['+1 555 0100', '555-0100', 'Digits only'] },
+    { key: 'password', kind: 'text', h: 95, types: ['password'], v: (v) => v.length >= 6,
+      labels: ['Password', 'Secret phrase', 'Passcode', 'Choose a password'],
+      ph: ['At least 6 characters', '••••••', 'Keep it private'] },
+    { key: 'dob', kind: 'text', h: 95, types: ['date'], v: nonEmpty,
+      labels: ['Date of birth', 'Birthday', 'Born on', 'DOB'], ph: [''] },
+    { key: 'country', kind: 'select', h: 95, v: nonEmpty,
+      labels: ['Country', 'Nation', 'Where do you live?', 'Region'],
+      options: ['India', 'United States', 'Germany', 'Brazil', 'Japan', 'Canada', 'Australia', 'France'] },
+    { key: 'gender', kind: 'radio', h: 105, v: nonEmpty,
+      labels: ['Gender', 'Identify as', 'Pick one', 'Your gender'],
+      options: ['Female', 'Male', 'Non-binary', 'Prefer not to say'] },
+    { key: 'message', kind: 'area', h: 150, v: () => true,
+      labels: ['Message', 'Anything else?', 'Notes', 'Tell us more'],
+      ph: ['Write something…', 'Optional notes', 'Say hello'] },
+    { key: 'terms', kind: 'check', h: 75, v: (v) => v === true,
+      labels: ['I accept the terms', 'I agree to the conditions', 'Terms accepted', 'Yes, I agree'] },
+    { key: 'newsletter', kind: 'check', h: 75, v: () => true,
+      labels: ['Send me updates', 'Subscribe to the newsletter', 'Keep me posted', 'Yes, email me news'] }
+  ];
+
+  /* ------------------------------------------------------------------ *
+   *  Field factory — each field is a random custom-element tag with a
+   *  CLOSED shadow root. Controls inside are unreachable by XPath/CSS.
+   * ------------------------------------------------------------------ */
+  const registry = [];
+
+  function field(doc, def) {
+    const host = doc.createElement('x-' + R.str(R.int(3, 8)));
+    rattrs(host);
+    tracked.push(host);
+
+    const root = host.attachShadow({ mode: 'closed' });
+    const c = cls();
+    const st = doc.createElement('style');
+    st.textContent = shadowCss(c);
+    root.appendChild(st);
+
+    const wrap = el(doc, R.pick(CT), c.w);
+    const label = el(doc, R.pick(LT), c.l);
+    label.textContent = noisy(R.pick(def.labels));
+    const err = el(doc, R.pick(['span', 'div', 'small']), c.e);
+
+    let ctrl, get, record = {};
+
+    if (def.kind === 'text') {
+      ctrl = el(doc, 'input', c.i);
+      ctrl.type = R.pick(def.types);
+      ctrl.id = R.str(9);
+      ctrl.setAttribute('name', R.str(9));
+      ctrl.setAttribute('autocomplete', 'x-' + R.str(6));
+      if (ctrl.type !== 'date') ctrl.placeholder = noisy(R.pick(def.ph));
+      ctrl.setAttribute('aria-label', noisy(R.str(6)));
+      tracked.push(ctrl);
+      get = () => ctrl.value.trim();
+    } else if (def.kind === 'area') {
+      ctrl = el(doc, 'textarea', c.i);
+      ctrl.id = R.str(9);
+      ctrl.setAttribute('name', R.str(9));
+      ctrl.placeholder = noisy(R.pick(def.ph));
+      tracked.push(ctrl);
+      get = () => ctrl.value.trim();
+    } else if (def.kind === 'select') {
+      ctrl = el(doc, 'select', c.i);
+      ctrl.id = R.str(9);
+      ctrl.setAttribute('name', R.str(9));
+      const blank = doc.createElement('option');
+      blank.value = '';
+      blank.textContent = noisy('Select…');
+      ctrl.appendChild(blank);
+      R.shuffle(def.options).forEach(o => {
+        const op = doc.createElement('option');
+        op.value = R.str(6);
+        op.textContent = noisy(o);
+        ctrl.appendChild(op);
+      });
+      tracked.push(ctrl);
+      get = () => ctrl.selectedIndex > 0 ? clean(ctrl.options[ctrl.selectedIndex].textContent) : '';
+    } else if (def.kind === 'radio') {
+      ctrl = el(doc, R.pick(CT), c.o);
+      const group = R.str(8);
+      const inputs = [];
+      R.shuffle(def.options).forEach(o => {
+        const row = el(doc, R.pick(['div', 'span', 'section']), c.r);
+        const inp = doc.createElement('input');
+        inp.type = 'radio';
+        inp.name = group;                 // must stay shared inside the group
+        inp.value = R.str(6);
+        inp.dataset.t = o;
+        const tx = el(doc, R.pick(LT));
+        tx.textContent = noisy(o);
+        row.appendChild(inp);
+        row.appendChild(tx);
+        row.addEventListener('click', (ev) => { if (ev.target !== inp) inp.click(); });
+        inputs.push(inp);
+        ctrl.appendChild(row);
+      });
+      tracked.push(ctrl);
+      get = () => { const x = inputs.find(i => i.checked); return x ? x.dataset.t : ''; };
+    } else if (def.kind === 'check') {
+      ctrl = doc.createElement('input');
+      ctrl.type = 'checkbox';
+      ctrl.className = c.k;
+      ctrl.id = R.str(9);
+      ctrl.setAttribute('name', R.str(9));
+      rattrs(ctrl);
+      tracked.push(ctrl);
+      get = () => ctrl.checked;
+    }
+
+    // DOM order is shuffled; visual order is fixed by CSS `order`
+    R.shuffle([label, ctrl, err]).forEach(n => wrap.appendChild(n));
+    root.appendChild(wrap);
+
+    registry.push({
+      def: def,
+      get: get,
+      err: (m) => { err.textContent = m ? noisy(m) : ''; }
+    });
+    return host;
+  }
+
+  /* ------------------------------------------------------------------ *
+   *  Submit button + result panel (also a closed shadow host)
+   * ------------------------------------------------------------------ */
+  function submitHost(doc) {
+    const host = doc.createElement('x-' + R.str(R.int(3, 8)));
+    rattrs(host);
+    tracked.push(host);
+    const root = host.attachShadow({ mode: 'closed' });
+    const c = cls();
+    const st = doc.createElement('style');
+    st.textContent = shadowCss(c);
+    root.appendChild(st);
+
+    const wrap = el(doc, R.pick(CT), c.w);
+    const btn = el(doc, R.pick(['div', 'span', 'section', 'b']), c.b);
+    btn.setAttribute('role', 'button');
+    btn.setAttribute('tabindex', '0');
+    btn.id = R.str(9);
+    btn.textContent = noisy(R.pick(['Create account', 'Send details', 'Register now', 'Confirm and continue']));
+    tracked.push(btn);
+    const out = el(doc, R.pick(CT), c.out);
+
+    const run = () => {
+      let ok = true;
+      const data = {};
+      registry.forEach(r => {
+        const v = r.get();
+        const good = r.def.v(v);
+        r.err(good ? '' : 'Please check this field');
+        if (!good) ok = false;
+        data[r.def.key] = v;
+      });
+      out.textContent = ok
+        ? 'Submitted:\n' + JSON.stringify(data, null, 2)
+        : 'Some fields need attention.';
+    };
+    btn.addEventListener('click', run);
+    btn.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); run(); } });
+
+    R.shuffle([btn, out]).forEach(n => wrap.appendChild(n));
+    root.appendChild(wrap);
+    return host;
+  }
+
+  /* ------------------------------------------------------------------ *
+   *  Heading (closed shadow too)
+   * ------------------------------------------------------------------ */
+  function heading(doc) {
+    const host = doc.createElement('x-' + R.str(R.int(3, 8)));
+    rattrs(host);
+    const root = host.attachShadow({ mode: 'closed' });
+    const c = cls();
+    const st = doc.createElement('style');
+    st.textContent = shadowCss(c);
+    root.appendChild(st);
+    const wrap = el(doc, R.pick(CT), c.w);
+    const h = el(doc, R.pick(['div', 'span', 'section']), c.h);
+    h.textContent = noisy(R.pick(['Create your profile', 'Join us today', 'Open an account', 'Tell us about you', 'Registration']));
+    wrap.appendChild(h);
+    root.appendChild(wrap);
+    return host;
+  }
+
+  /* ------------------------------------------------------------------ *
+   *  Layout helpers: DOM order is shuffled, visual order is set by flex order
+   * ------------------------------------------------------------------ */
+  function place(box, nodes) {
+    nodes.forEach((n, i) => { n.style.order = String(i); });
+    R.shuffle(nodes).forEach(n => box.appendChild(n));
+  }
+
+  /* ------------------------------------------------------------------ *
+   *  Iframes: random id / name / title, nested up to 3 levels,
+   *  fields distributed randomly across them
+   * ------------------------------------------------------------------ */
+  const split = (list, depth) => {
+    if (depth < 3 && list.length >= 3) {
+      const k = Math.ceil(list.length * 0.5);
+      return [list.slice(0, k), list.slice(k)];
+    }
+    return [list, []];
+  };
+  const H = (list, depth) => {
+    const p = split(list, depth);
+    return 40 + p[0].reduce((s, d) => s + d.h, 0) + (p[1].length ? H(p[1], depth + 1) + 30 : 0);
+  };
+
+  function frame(doc, D, list, depth) {
+    const parts = split(list, depth);
+    const local = parts[0], nested = parts[1];
+
+    const ifr = doc.createElement('iframe');
+    ifr.className = D.f;
+    rattrs(ifr);
+    ifr.id = R.str(10);
+    ifr.setAttribute('name', R.str(10));
+    ifr.title = noisy(R.pick(['Section', 'Details', 'Info panel', 'Form part', 'Block']));
+    ifr.setAttribute('aria-label', noisy(R.str(6)));
+    ifr.style.height = H(list, depth) + 'px';
+    tracked.push(ifr);
+
+    ifr.addEventListener('load', function () {
+      if (ifr._built) return;
+      ifr._built = true;
+      const d = ifr.contentDocument;
+      const D2 = scope(d);
+      const box = el(d, R.pick(CT), D2.box);
+      d.body.appendChild(box);
+      const items = local.map(def => field(d, def));
+      if (nested.length) items.push(frame(d, D2, nested, depth + 1));
+      place(box, R.shuffle(items));
+    });
+    ifr.srcdoc = '<!doctype html><html><head><meta charset="utf-8"></head><body></body></html>';
+    return ifr;
+  }
+
+  /* ------------------------------------------------------------------ *
+   *  Build the page
+   * ------------------------------------------------------------------ */
+  document.title = noisy(R.pick(['Sign up', 'Welcome', 'Register', 'Get started', 'Profile setup'])) + ' ' + R.str(4);
+  document.documentElement.setAttribute('lang', R.pick(['en', 'en-US', 'en-GB']));
+
+  const D = scope(document);
+  const box = el(document, R.pick(CT), D.box);
+  box.style.maxWidth = R.int(520, 720) + 'px';
+  box.style.margin = '0 auto';
+  document.body.appendChild(box);
+
+  const defs = R.shuffle(DEFS);
+  const mainDefs = defs.slice(0, R.int(2, 3));
+  const rest = defs.slice(mainDefs.length);
+  const nFrames = R.int(2, 3);
+
+  const items = mainDefs.map(d => field(document, d));
+  for (let i = 0; i < nFrames; i++) {
+    const chunk = rest.filter((_, j) => j % nFrames === i);
+    if (chunk.length) items.push(frame(document, D, chunk, 1));
+  }
+
+  place(box, [heading(document)].concat(R.shuffle(items), [submitHost(document)]));
+})();
+</script>
+</body>
+</html>
